@@ -301,17 +301,26 @@ class Cycle(Basic_Calcul):
         print(self.allcycle)
         self.node = tmptmp[2]
         self.whefin = tmptmp[3]
-        self.cycle_edges = []
-        for mx in range(len(tmptmp[0])):
-            for nx in range(len(tmptmp[0][mx])):
-                if tmptmp[0][mx][nx] not in self.cycle_edges:
-                    self.cycle_edges.append(tmptmp[0][mx][nx])
         fincycle = tmptmp[1]
+        print(len(self.allcycle))
+        per_remove = []
         for per_cycle in self.allcycle:
-            self.get_left(per_cycle, fincycle)
+            per_remove.append(self.get_left(per_cycle, fincycle))
+        # for per_cycle in self.allcycle:
+        for per_cycle in per_remove:
+            print(per_cycle)
+            if len(per_cycle):
+                self.allcycle.remove(per_cycle)
+        print("leftlen:", len(self.allcycle))
+        print(self.allcycle)
         # print(tmptmp[0])
         # print(tmptmp[1])
         print("leftfin:", len(fincycle))
+        self.cycle_edges = []
+        for mx in range(len(self.allcycle)):
+            for nx in range(len(self.allcycle[mx])):
+                if self.allcycle[mx][nx] not in self.cycle_edges:
+                    self.cycle_edges.append(self.allcycle[mx][nx])
 
         # self.findmax_link_edge(cycle_edge)
 
@@ -320,7 +329,8 @@ class Cycle(Basic_Calcul):
         tmp_vec = list(set([jx for ix in list1 for jx in ix]))
         for eve_node in tmp_vec:
             if eve_node not in fin_vec:
-                return fincycle
+                return []
+                # return fincycle
         share_edge = []
         for per_edge in list1:
             if per_edge in fincycle:
@@ -329,9 +339,11 @@ class Cycle(Basic_Calcul):
                 fincycle.append(per_edge)
         for per_edge in share_edge:
             fincycle.remove(per_edge)
-        print("exchange")
-        print(list1)
-        return fincycle
+        # print("exchange")
+        # print(list1)
+        # self.allcycle.remove(list1)
+        # return fincycle
+        return list1
 
     def findmax_link_edge(self, cycle_edge):
         edges = copy.deepcopy(cycle_edge)
