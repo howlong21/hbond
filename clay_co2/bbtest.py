@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 
 
 class Basic_Calcul(object):
-    def get_vector(self, coor1, coor2, box):
+    @staticmethod
+    def get_vector(coor1, coor2, box=100.0):
         tmp1 = coor2 - coor1 - box * np.floor((coor2 - coor1) / box)
         return tmp1 - round(tmp1 / box) * box
 
@@ -79,7 +80,7 @@ class GetLmpData(Basic_Calcul):
     def __init__(self, filename):
         self.file = open(filename)
         self.ele1 = ["ow", "hw"]
-        self.ele2 = ["CT"]
+        self.ele2 = ["co"]
         self.clayo = ["ob", "obts"]
         self.ao = ["ao", "mgo"]
         self.readcoor()
@@ -203,7 +204,14 @@ class GetHbonds(Basic_Calcul):
                 if self.whe_ow_os(arrwater[time][waterlist[jx]], arrclay[time][claylist[kx]], arrbox[time]):
                     per_bond.append([waterlist[jx], len(arrwater[0]) + claylist[kx]])
                     extra_clay.append(claylist[kx])
+                    # print(arrwater[time][waterlist[jx]], arrclay[time][claylist[kx]])
         if len(extra_clay) > 1:
+            z_dis = np.array([np.abs(self.get_vector(arrclay[time][extra_clay[per_o]][2],
+                                                     arrclay[time][extra_clay[0]][2]))
+                              for per_o in range(len(extra_clay))])
+            # print(z_dis > 2.0)
+            # print(extra_clay[z_dis > 2.0])
+
             extra_clay2 = []
             for jx in extra_clay:
                 if jx not in extra_clay2:
@@ -221,11 +229,13 @@ class GetHbonds(Basic_Calcul):
                     per_bond.append([extra_edge[jx][0]+len(arrwater[0]), extra_edge[jx][1]+len(arrwater[0])])
                 else:
                     per_bond.append([extra_edge[jx][1] + len(arrwater[0]), extra_edge[jx][0] + len(arrwater[0])])
+        print(len(per_bond), per_bond)
         return per_bond
 
     def get_scatter_edges(self, list1, numlist):
         numlist.sort()
         whe_in_numlist = np.array([ix in numlist for ix in range(len(list1))])
+        # print(whe_in_numlist, list1)
         numlist_x = list1[whe_in_numlist][:, 0]
         min_ind = np.argmin(numlist_x)
         anglelist = []
@@ -286,51 +296,46 @@ class Cycle(Basic_Calcul):
         self.arrele1 = getlmpdata.arr_water
         self.arrbox = getlmpdata.arr_box
         self.arrclayo = getlmpdata.arr_clayo
-        # tmp1 = self.get_atom_cycles(time, hbonds)
-        # cycle_edge = []
-        # for mx in range(len(tmp1[0])):
-        #     for nx in range(len(tmp1[0][mx])):
-        #         if tmp1[0][mx][nx] not in cycle_edge:
-        #             cycle_edge.append(tmp1[0][mx][nx])
-
-        # tmptmp = self.get_atom_cycles(time, cycle_edge)
         tmptmp = self.get_atom_cycles(time, hbonds)
         self.allcycle = tmptmp[0]
-        self.clathlen = len(tmptmp[0]) + 1
-        self.maxring = max([len(per_cycl) for per_cycl in self.allcycle])
-        print(self.allcycle)
         self.node = tmptmp[2]
-        self.whefin = tmptmp[3]
+        self.whefin = 1
+        # self.whefin = tmptmp[3]
         fincycle = tmptmp[1]
-        print(len(self.allcycle))
+
+        # remove the extra small cycles
         per_remove = []
         for per_cycle in self.allcycle:
             per_remove.append(self.get_left(per_cycle, fincycle))
-        # for per_cycle in self.allcycle:
         for per_cycle in per_remove:
-            print(per_cycle)
             if len(per_cycle):
                 self.allcycle.remove(per_cycle)
-        print("leftlen:", len(self.allcycle))
-        print(self.allcycle)
-        # print(tmptmp[0])
-        # print(tmptmp[1])
-        print("leftfin:", len(fincycle))
         self.cycle_edges = []
         for mx in range(len(self.allcycle)):
             for nx in range(len(self.allcycle[mx])):
                 if self.allcycle[mx][nx] not in self.cycle_edges:
                     self.cycle_edges.append(self.allcycle[mx][nx])
 
-        # self.findmax_link_edge(cycle_edge)
+        if len(self.allcycle):
+            self.maxring = max(max([len(per_cycl) for per_cycl in self.allcycle]), len(fincycle))
+            self.fincycle, self.whefin = self.get_min_fin(self.allcycle, time)
+            self.clathlen = len(self.allcycle) + 1
+        else:
+            self.maxring = 0
+            self.fincycle = []
+            self.clathlen = 0
+            self.whefin = 0
+        # print([len(per_cycl) for per_cycl in self.allcycle], len(fincycle))
+        print(self.cycle_edges)
 
-    def get_left(self, list1, fincycle):
+
+    @staticmethod
+    def get_left(list1, fincycle):
         fin_vec = list(set([jx for ix in fincycle for jx in ix]))
         tmp_vec = list(set([jx for ix in list1 for jx in ix]))
         for eve_node in tmp_vec:
             if eve_node not in fin_vec:
                 return []
-                # return fincycle
         share_edge = []
         for per_edge in list1:
             if per_edge in fincycle:
@@ -339,10 +344,6 @@ class Cycle(Basic_Calcul):
                 fincycle.append(per_edge)
         for per_edge in share_edge:
             fincycle.remove(per_edge)
-        # print("exchange")
-        # print(list1)
-        # self.allcycle.remove(list1)
-        # return fincycle
         return list1
 
     def findmax_link_edge(self, cycle_edge):
@@ -544,15 +545,42 @@ class Cycle(Basic_Calcul):
                 poly_area1 = self.polygon_area(fincycle, time, self.arrele1, self.arrclayo, self.arrbox)
                 poly_area3 = self.polygon_area(sub_cycle, time, self.arrele1, self.arrclayo, self.arrbox)
                 if self.get_num_edge(tmp_list) <= self.get_num_edge(bi_list2) and poly_area1 > poly_area3:
-                    sharelist = self.and_list2(bi_list1, bi_list2)
-                    removelist = []
-                    for mm in range(len(sharelist)):
-                        if sharelist[mm]:
-                            removelist.append(edges[mm])
-                    for mm in range(len(removelist)):
-                        edges.remove(removelist[mm])
+                    # sharelist = self.and_list2(bi_list1, bi_list2)
+                    # removelist = []
+                    # for mm in range(len(sharelist)):
+                    #     if sharelist[mm]:
+                    #         removelist.append(edges[mm])
+                    # for mm in range(len(removelist)):
+                    #     edges.remove(removelist[mm])
                     return 1
         return 0
+
+    def get_min_fin(self, allcycles, time):
+        alledges = []
+        for percycle in allcycles:
+            for peredge in percycle:
+                if peredge not in alledges and [peredge[1], peredge[0]] not in alledges:
+                    alledges.append(peredge)
+        while 1:
+            while 1:
+                allcycle_len = [len(allcycles[ix]) for ix in range(len(allcycles))]
+                tmp_bi_cycle = [0 for ix in range(len(alledges))]
+                for ix in range(len(allcycles)):
+                    tmp_bi_cycle = self.xor_list(tmp_bi_cycle,
+                                                 self.get_bi_list(allcycles[ix], alledges))
+                fincycle = self.rever_bi2list(tmp_bi_cycle, alledges)
+                if self.get_num_edge(tmp_bi_cycle) < max(allcycle_len):
+                    allcycles[allcycle_len.index(max(allcycle_len))] = fincycle
+                else:
+                    break
+            res_tmp = self.combine_cycle(allcycles, alledges, time)
+            if not res_tmp:
+                break
+        if len(allcycles) > 1:
+            whe_cc = self.whe_fincycle(allcycles, fincycle, alledges, time)
+        else:
+            whe_cc = 0
+        return fincycle, whe_cc
 
     def get_atom_cycles(self, time, inputedges):
         # nnn = 0
@@ -574,47 +602,14 @@ class Cycle(Basic_Calcul):
                 per_cycle = self.get_shortest_path(kk[0], kk[1][ix][0], kk[1][ix][1])
                 allcycles.append(per_cycle)
             if len(allcycles):
-                while 1:
-                    while 1:
-                        allcycle_len = [len(allcycles[ix]) for ix in range(len(allcycles))]
-                        tmp_bi_cycle = [0 for ix in range(len(inputedges))]
-                        for ix in range(len(allcycles)):
-                            tmp_bi_cycle = self.xor_list(tmp_bi_cycle,
-                                                         self.get_bi_list(allcycles[ix], inputedges))
-                        fincycle = self.rever_bi2list(tmp_bi_cycle, inputedges)
-                        if self.get_num_edge(tmp_bi_cycle) < max(allcycle_len):
-                            allcycles[allcycle_len.index(max(allcycle_len))] = fincycle
-                        else:
-                            break
-                    res_tmp = self.combine_cycle(allcycles, inputedges, time)
-                    if not res_tmp:
-                        break
-                if len(allcycles) > 1:
-                    whe_cc = self.whe_fincycle(allcycles, fincycle, inputedges, time)
-                else:
-                    whe_cc = 0
+                fincycle, whe_cc = self.get_min_fin(allcycles, time)
             else:
                 fincycle = []
-                whe_cc = 0
+                # whe_cc = 0
         else:
             allcycles, fincycle = [], []
             eve_nodes.append([])
-            whe_cc = 0
-        # print("allcycles:", allcycles)
-        # resdic = self.output2(allcycles, time, "filecycle"+str(nnn))
-        # cycle_edges = []
-        # for mx in range(len(allcycles)):
-        #     for nx in range(len(allcycles[mx])):
-        #         if allcycles[mx][nx] not in cycle_edges and \
-        #                         [allcycles[mx][nx][1], allcycles[mx][nx][0]] not in cycle_edges:
-        #             cycle_edges.append(allcycles[mx][nx])
-        # print("resdic", resdic)
-        # print(cycle_edges)
-        # for mx in range(len(cycle_edges)):
-        #     print("label add Bonds ", str(nnn) + '/' + str(resdic[cycle_edges[mx][0]]),
-        #           str(nnn) + '/' + str(resdic[cycle_edges[mx][1]]))
-        # nnn += 1
-        return allcycles, fincycle, eve_nodes[0], whe_cc
+        return allcycles, fincycle, eve_nodes[0]
 
     def output2(self, allcycle, time, filename):
         outele = []
@@ -694,7 +689,6 @@ class Output(Basic_Calcul):
                 index2 = index1 - lenwater
                 clath_atoms.append(["ob", self.arrclay[index2][0], self.arrclay[index2][1], self.arrclay[index2][2]])
                 numnum += 1
-        # fileout = open(filename, "w")
         print("whe_clay:", self.wheclay, file=fileout)
         print(len(clath_atoms), file=fileout)
         print(len(clath_atoms), file=fileout)
@@ -703,100 +697,36 @@ class Output(Basic_Calcul):
                 clath_atoms[ix][jx+1] = self.center[jx] + self.get_vector(self.center[jx], clath_atoms[ix][jx+1], self.arrbox[jx])
             print(clath_atoms[ix][0], clath_atoms[ix][1], clath_atoms[ix][2], clath_atoms[ix][3], file=fileout)
         # fileout.close()
+        # print(res_dic)
         return res_dic
 
     def outputlabel(self, resdic, cycle_edges, molid, fileout):
+        print("wheclay", self.wheclay, file=fileout)
         for eachedge in cycle_edges:
             print("label add Bonds ", str(molid) + '/' + str(resdic[eachedge[0]]),
                   str(molid) + '/' + str(resdic[eachedge[1]]), file=fileout)
 
 
-traj1 = GetLmpData("C:\\Users\\lq\\Desktop\\10dump")
+traj1 = GetLmpData("C:\\Users\\lq\\Desktop\\real1dump")
 totaltime, totalnum, = traj1.arr_methane.shape[:2]
 # totaltime, totalnum = 1, 1
 fileout1 = open("xyxyz", "w")
 fileout2 = open("label", "w")
-allnum = 0
-# for now_time in range(totaltime):
-#     for now_mol in range(totalnum):
-for now_time in range(0, 1):
-    for now_mol in range(0, 1):
+for now_time in range(totaltime):
+    for now_mol in range(383, 384):
+# for now_time in range(0, 1):
+#     for now_mol in range(0, 5):
         hbond1 = GetHbonds(traj1, guestnum=now_mol, time=now_time)
         hbedges = hbond1.Hblist
-        print("now_time, now_nol", now_time, now_mol)
+        # print("now_time, now_nol", now_time, now_mol)
         cycle1 = Cycle(traj1, hbedges, now_time)
-        print("maxring:", cycle1.maxring, "clathlen:", cycle1.clathlen)
+        # print("maxring:", cycle1.maxring, "clathlen:", cycle1.clathlen)
 
         # print(cycle1.allcycle)
-        if cycle1.maxring < 30 and cycle1.clathlen > 5:
-            print("new molecule:", allnum, file=fileout1)
+        if cycle1.maxring < 12 and cycle1.clathlen > 6:
+            print("new molecule: time:", now_time, "mol:", now_mol, file=fileout1)
             print("maxring:", cycle1.maxring, "clathlen:", cycle1.clathlen,
-                  "whe_fin:", cycle1.whefin, "molid", allnum, file=fileout2)
+                  "whe_fin:", cycle1.whefin, "molid: time:", now_time, "mol:", now_mol, file=fileout2, end=' ')
             Output(traj1, now_time, now_mol, cycle1.node, cycle1.cycle_edges, 0, fileout1, fileout2)
-        allnum += 1
 fileout1.close()
 fileout2.close()
-
-
-def judge_cycle(edges):
-    """find the cycles from the input edges"""
-    vertices = []
-    ver_nodes = []
-    for kx in [jx for ix in edges for jx in ix]:
-        if kx not in vertices:
-            vertices.append(kx)
-    allnodes = [vertices[0]]
-    span_tree = [vertices[0]]
-    cycle = []
-    not_exam_ver = copy.deepcopy(vertices)
-    for ix in range(len(vertices)):
-        ver_nodes.append(Node(vertices[ix]))
-    root = ver_nodes[0]
-    while len(not_exam_ver) + len(span_tree) > len(set(not_exam_ver + span_tree)):
-        cur_ver = not_exam_ver[0]
-        del_edge_copy = []
-        whe_del = 1
-        for ix in edges:
-            if cur_ver == ix[0]:
-                if ix[0] in span_tree:
-                    if ix[1] not in span_tree:
-                        ver_nodes[vertices.index(cur_ver)].add_child(ver_nodes[vertices.index(ix[1])])
-                        span_tree.append(ix[1])
-                        allnodes.append(ix[1])
-                    else:
-                        cycle.append(ix)
-                    del_edge_copy.append(ix)
-                else:
-                    not_exam_ver = not_exam_ver[1:] + [not_exam_ver[0]]
-                    whe_del = 0
-                    break
-            elif cur_ver == ix[1]:
-                if ix[1] in span_tree:
-                    if ix[0] not in span_tree:
-                        ver_nodes[vertices.index(cur_ver)].add_child(ver_nodes[vertices.index(ix[0])])
-                        span_tree.append(ix[0])
-                        allnodes.append(ix[0])
-                    else:
-                        cycle.append(ix)
-                    del_edge_copy.append(ix)
-                else:
-                    not_exam_ver = not_exam_ver[1:] + [not_exam_ver[0]]
-                    whe_del = 0
-                    break
-        if whe_del:
-            for ix in del_edge_copy:
-                edges.remove(ix)
-            not_exam_ver.remove(not_exam_ver[0])
-    return root, cycle, allnodes
-# list1 = [[[2590, 6632], [2590, 4763], [4763, 6632]], [[3831, 6632], [3455, 3831], [3455, 4763], [4763, 6632]],
-#          [[4587, 7794], [1571, 4587], [1571, 3713], [3713, 7794]]]
-# list2 = []
-# for percycle in list1:
-#     for peredge in percycle:
-#         if peredge not in list2:
-#             list2.append(peredge)
-# print(judge_cycle(list2))
-
-
-# add comment
-
