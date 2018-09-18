@@ -1,7 +1,7 @@
 import math
 import numpy as np
 import copy
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 
 class Basic_Calcul(object):
@@ -209,26 +209,45 @@ class GetHbonds(Basic_Calcul):
             z_dis = np.array([np.abs(self.get_vector(arrclay[time][extra_clay[per_o]][2],
                                                      arrclay[time][extra_clay[0]][2]))
                               for per_o in range(len(extra_clay))])
-            # print(z_dis > 2.0)
-            # print(extra_clay[z_dis > 2.0])
+            extra_clay3 = np.array(extra_clay)[z_dis <= 2.0]
+            extra_clay4 = np.array(extra_clay)[z_dis > 2.0]
 
-            extra_clay2 = []
-            for jx in extra_clay:
-                if jx not in extra_clay2:
-                    extra_clay2.append(jx)
-            for jx in range(1, len(extra_clay2)):
-                arrclay[time][extra_clay2[jx]][0] = arrclay[time][extra_clay2[0]][0] \
-                                              + self.get_vector(arrclay[time][extra_clay2[0]][0],
-                                                                arrclay[time][extra_clay2[jx]][0], arrbox[time][0])
-                arrclay[time][extra_clay2[jx]][1] = arrclay[time][extra_clay2[0]][1] \
-                                              + self.get_vector(arrclay[time][extra_clay2[0]][1],
-                                                                arrclay[time][extra_clay2[jx]][1], arrbox[time][1])
-            extra_edge = self.get_scatter_edges(arrclay[time], extra_clay2)
-            for jx in range(len(extra_edge)):
-                if extra_edge[jx][0] < extra_edge[jx][1]:
-                    per_bond.append([extra_edge[jx][0]+len(arrwater[0]), extra_edge[jx][1]+len(arrwater[0])])
-                else:
-                    per_bond.append([extra_edge[jx][1] + len(arrwater[0]), extra_edge[jx][0] + len(arrwater[0])])
+            if len(extra_clay3) > 1:
+                extra_clay2 = []
+                for jx in extra_clay3:
+                    if jx not in extra_clay2:
+                        extra_clay2.append(jx)
+                for jx in range(1, len(extra_clay2)):
+                    arrclay[time][extra_clay2[jx]][0] = arrclay[time][extra_clay2[0]][0] \
+                                                  + self.get_vector(arrclay[time][extra_clay2[0]][0],
+                                                                    arrclay[time][extra_clay2[jx]][0], arrbox[time][0])
+                    arrclay[time][extra_clay2[jx]][1] = arrclay[time][extra_clay2[0]][1] \
+                                                  + self.get_vector(arrclay[time][extra_clay2[0]][1],
+                                                                    arrclay[time][extra_clay2[jx]][1], arrbox[time][1])
+                extra_edge = self.get_scatter_edges(arrclay[time], extra_clay2)
+                for jx in range(len(extra_edge)):
+                    if extra_edge[jx][0] < extra_edge[jx][1]:
+                        per_bond.append([extra_edge[jx][0]+len(arrwater[0]), extra_edge[jx][1]+len(arrwater[0])])
+                    else:
+                        per_bond.append([extra_edge[jx][1] + len(arrwater[0]), extra_edge[jx][0] + len(arrwater[0])])
+            if len(extra_clay4) > 1:
+                extra_clay2 = []
+                for jx in extra_clay4:
+                    if jx not in extra_clay2:
+                        extra_clay2.append(jx)
+                for jx in range(1, len(extra_clay2)):
+                    arrclay[time][extra_clay2[jx]][0] = arrclay[time][extra_clay2[0]][0] \
+                                                  + self.get_vector(arrclay[time][extra_clay2[0]][0],
+                                                                    arrclay[time][extra_clay2[jx]][0], arrbox[time][0])
+                    arrclay[time][extra_clay2[jx]][1] = arrclay[time][extra_clay2[0]][1] \
+                                                  + self.get_vector(arrclay[time][extra_clay2[0]][1],
+                                                                    arrclay[time][extra_clay2[jx]][1], arrbox[time][1])
+                extra_edge = self.get_scatter_edges(arrclay[time], extra_clay2)
+                for jx in range(len(extra_edge)):
+                    if extra_edge[jx][0] < extra_edge[jx][1]:
+                        per_bond.append([extra_edge[jx][0]+len(arrwater[0]), extra_edge[jx][1]+len(arrwater[0])])
+                    else:
+                        per_bond.append([extra_edge[jx][1] + len(arrwater[0]), extra_edge[jx][0] + len(arrwater[0])])
         print(len(per_bond), per_bond)
         return per_bond
 
@@ -695,7 +714,8 @@ class Output(Basic_Calcul):
         for ix in range(len(clath_atoms)):
             for jx in range(3):
                 clath_atoms[ix][jx+1] = self.center[jx] + self.get_vector(self.center[jx], clath_atoms[ix][jx+1], self.arrbox[jx])
-            print(clath_atoms[ix][0], clath_atoms[ix][1], clath_atoms[ix][2], clath_atoms[ix][3], file=fileout)
+            print("%s  %8.4f %8.4f %8.4f" % (clath_atoms[ix][0], clath_atoms[ix][1],
+                  clath_atoms[ix][2], clath_atoms[ix][3]), file=fileout)
         # fileout.close()
         # print(res_dic)
         return res_dic
@@ -723,7 +743,7 @@ for now_time in range(totaltime):
         # print("maxring:", cycle1.maxring, "clathlen:", cycle1.clathlen)
 
         # print(cycle1.allcycle)
-        if cycle1.maxring < 12 and cycle1.clathlen > 6:
+        if cycle1.maxring < 20 and cycle1.clathlen > 2:
             print("new molecule: time:", now_time, "mol:", now_mol, file=fileout1)
             print("maxring:", cycle1.maxring, "clathlen:", cycle1.clathlen,
                   "whe_fin:", cycle1.whefin, "molid: time:", now_time, "mol:", now_mol, file=fileout2, end=' ')
